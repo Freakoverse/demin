@@ -1,0 +1,83 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'  # Trigger on version tags like v1.35.2
+  workflow_dispatch:  # Manual trigger (builds artifacts only, no release)
+
+permissions:
+  contents: write  # Needed to create releases
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            cmd: npm run buildDebian
+            artifact: linux-deb-package
+            path: dist/app/*.deb
+          - os: ubuntu-latest
+            cmd: npm run buildAppImage
+            artifact: linux-appimage-package
+            path: dist/app/*.AppImage
+          - os: windows-latest
+            cmd: npm run buildWindows
+            artifact: windows-package
+            path: |
+              dist/app/*.zip
+              dist/app/*.exe
+          - os: macos-13
+            env:
+              SDKROOT: /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk
+            cmd: npm run buildMacIntel
+            artifact: darwin-x86-package
+            path: dist/app/*.zip
+          - os: macos-13
+            env:
+              SDKROOT: /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk
+            cmd: npm run buildMacArm
+            artifact: darwin-arm-package
+            path: dist/app/*.zip
+    env:
+      SDKROOT: ${{ matrix.env.SDKROOT || '' }}
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 20
+    - run: npm install --omit=optional
+    - name: Build package
+      run: ${{ matrix.cmd }}
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.artifact }}
+        path: ${{ matrix.path }}
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: List artifacts
+      run: find artifacts -type f | head -50
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        draft: true
+        generate_release_notes: true
+        files: |
+          artifacts/**/*.zip
+          artifacts/**/*.exe
+          artifacts/**/*.deb
+          artifacts/**/*.AppImage

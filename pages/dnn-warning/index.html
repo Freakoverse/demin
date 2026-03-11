@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>DNN Certificate Warning</title>
+    <link rel="stylesheet" href="../pagebase.css" />
+    <link rel="stylesheet" href="dnn-warning.css" />
+    <link rel="icon" href="warningFavicon.png" />
+  </head>
+
+  <body>
+    <div id="page-wrapper">
+      <div class="warning-icon">⚠️</div>
+      <h1>Connection Not Verified</h1>
+      <h2 id="domain-name"></h2>
+      
+      <div class="warning-message">
+        <p>This DNN site's certificate could not be verified. This means:</p>
+        <ul>
+          <li>The site may not be who it claims to be</li>
+          <li>Your connection might not be private</li>
+          <li>The domain owner hasn't published a valid certificate</li>
+        </ul>
+      </div>
+
+      <div class="error-details" id="error-details">
+        <strong>Technical Details:</strong>
+        <p id="cert-error"></p>
+      </div>
+
+      <div class="button-container">
+        <button class="secondary-button" id="proceed-button">
+          Proceed Anyway (Unsafe)
+        </button>
+        <button class="primary-button" id="go-back-button">
+          Go Back to Safety
+        </button>
+      </div>
+    </div>
+
+    <script src="dnn-warning.js"></script>
+  </body>
+</html>

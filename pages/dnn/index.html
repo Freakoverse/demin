@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Loading...</title>
+    <link rel="stylesheet" href="../pagebase.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        /* Loading overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            z-index: 1000;
+            transition: opacity 0.3s ease;
+        }
+
+        .loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 165, 0, 0.3);
+            border-top: 4px solid #ffa500;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 1.5rem;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+            color: #ffa500;
+        }
+
+        .name {
+            font-family: monospace;
+            font-size: 1.2rem;
+            color: #fff;
+            background: rgba(255, 165, 0, 0.2);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+
+        .status {
+            color: #aaa;
+            font-size: 0.9rem;
+        }
+
+        .error {
+            color: #ff6b6b;
+            margin-top: 1rem;
+            display: none;
+        }
+
+        /* Full-screen iframe */
+        #content-frame {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+            z-index: 1;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Loading overlay -->
+    <div class="loading-overlay" id="loading">
+        <div class="spinner"></div>
+        <h1>Resolving DNN Name</h1>
+        <div class="name" id="dnn-name">Loading...</div>
+        <div class="status" id="status">Contacting DNN resolver...</div>
+        <div class="error" id="error"></div>
+    </div>
+
+    <!-- Hidden iframe that will load the content -->
+    <iframe id="content-frame" style="display: none;"></iframe>
+
+    <script>
+        const DNN_NODE_URL = 'http://64.111.92.122:8080';
+
+        async function resolveDNN() {
+            const params = new URLSearchParams(window.location.search);
+            const name = params.get('name');
+
+            if (!name) {
+                showError('No DNN name provided');
+                return;
+            }
+
+            // Update page title to show DNN name
+            document.title = name;
+            document.getElementById('dnn-name').textContent = name;
+
+            try {
+                document.getElementById('status').textContent = 'Fetching resolution data...';
+
+                const response = await fetch(`${DNN_NODE_URL}/dnn/resolve/${name}`);
+                if (!response.ok) {
+                    throw new Error(`Resolution failed: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (data.connection && data.connection.records) {
+                    const aRecord = data.connection.records.find(r => r.type === 'A');
+                    if (aRecord && aRecord.values && aRecord.values[0]) {
+                        const ip = aRecord.values[0];
+
+                        // ALWAYS use HTTP on port 8080 (to bypass nginx HTTPS redirect)
+                        const resolvedUrl = 'http://' + ip + ':8080';
+                        console.log('DNN Resolver: Loading', resolvedUrl, 'in iframe');
+
+                        document.getElementById('status').textContent = `Loading ${name}...`;
+
+                        // Load content in iframe instead of redirecting
+                        const iframe = document.getElementById('content-frame');
+                        iframe.src = resolvedUrl;
+
+                        // When iframe loads, hide the loading overlay
+                        iframe.onload = function () {
+                            iframe.style.display = 'block';
+                            document.getElementById('loading').classList.add('hidden');
+                        };
+
+                        // Timeout fallback - show content after 3 seconds anyway
+                        setTimeout(() => {
+                            iframe.style.display = 'block';
+                            document.getElementById('loading').classList.add('hidden');
+                        }, 3000);
+
+                        return;
+                    }
+                }
+
+                showError('No A record found in resolution data');
+
+            } catch (e) {
+                showError(`Resolution failed: ${e.message}`);
+            }
+        }
+
+        function showError(message) {
+            document.getElementById('status').style.display = 'none';
+            document.getElementById('error').textContent = message;
+            document.getElementById('error').style.display = 'block';
+        }
+
+        // Start resolution
+        resolveDNN();
+    </script>
+</body>
+
+</html>
