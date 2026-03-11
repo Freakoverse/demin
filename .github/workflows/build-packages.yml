@@ -30,13 +30,13 @@ jobs:
             path: |
               dist/app/*.zip
               dist/app/*.exe
-          - os: macos-13
+          - os: macos-14
             env:
               SDKROOT: /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk
             cmd: npm run buildMacIntel
             artifact: darwin-x86-package
             path: dist/app/*.zip
-          - os: macos-13
+          - os: macos-14
             env:
               SDKROOT: /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk
             cmd: npm run buildMacArm
@@ -60,7 +60,7 @@ jobs:
 
   release:
     needs: build
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: always() && startsWith(github.ref, 'refs/tags/v') && !cancelled()
     runs-on: ubuntu-latest
     steps:
     - name: Download all artifacts
