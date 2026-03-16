@@ -46,17 +46,10 @@ ipc.handle('addWordToSpellCheckerDictionary', function (e, word) {
 })
 
 ipc.handle('clearStorageData', function () {
-  // Clear web content storage but PRESERVE IndexedDB (which contains bookmarks/places database)
-  // Only clear: cookies, localStorage, sessionStorage, webSQL, serviceWorkers, cachestorage
+  // Only clear the webcontent partition storage — the default session contains
+  // the places/bookmarks IndexedDB and must NOT be cleared
   const storagesToClear = ['cookies', 'localstorage', 'sessionstorage', 'websql', 'serviceworkers', 'cachestorage']
   return session.fromPartition('persist:webcontent').clearStorageData({ storages: storagesToClear })
-  /* It's important not to delete data from file:// from the default partition, since that would also remove internal browser data (such as bookmarks). However, HTTP data does need to be cleared, as there can be leftover data from loading external resources in the browser UI */
-    .then(function () {
-      return session.defaultSession.clearStorageData({ origin: 'http://' })
-    })
-    .then(function () {
-      return session.defaultSession.clearStorageData({ origin: 'https://' })
-    })
     .then(function () {
       return session.fromPartition('persist:webcontent').clearCache()
     })
@@ -67,6 +60,7 @@ ipc.handle('clearStorageData', function () {
       return session.fromPartition('persist:webcontent').clearAuthCache()
     })
     .then(function () {
+      // Only clear caches for default session — NOT storage data (bookmarks live here)
       return session.defaultSession.clearCache()
     })
     .then(function () {
