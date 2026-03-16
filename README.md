@@ -1,6 +1,6 @@
 # Demin
 
-> **Demin** is a fork of the [Min browser](https://github.com/minbrowser/min) with a modified UX and added [DNN](https://github.com/nickkipshidze/dnn) (Decentralized Name Network) support.
+> **Demin** is a fork of the [Min browser](https://github.com/minbrowser/min) with a modified UX and added [DNN](https://github.com/Freakoverse/dnn-node) (Decentralized Name Network) support.
 
 ---
 

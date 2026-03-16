@@ -31,10 +31,10 @@ class TabList {
       hasWebContents: false,
     }
 
-    if (options.atEnd) {
-      this.tabs.push(newTab)
-    } else {
+    if (options.afterCurrent) {
       this.tabs.splice(this.getSelectedIndex() + 1, 0, newTab)
+    } else {
+      this.tabs.push(newTab)
     }
 
     if (emit) {
