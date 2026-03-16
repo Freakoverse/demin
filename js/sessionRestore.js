@@ -3,7 +3,7 @@ var webviews = require('webviews.js')
 var tabEditor = require('navbar/tabEditor.js')
 var tabState = require('tabState.js')
 var settings = require('util/settings/settings.js')
-var taskOverlay = require('taskOverlay/taskOverlay.js')
+
 const writeFileAtomic = require('write-file-atomic')
 const statistics = require('js/statistics.js')
 
@@ -84,11 +84,9 @@ const sessionRestore = {
       if (!savedStringData) {
         tasks.setSelected(tasks.add()) // create a new task
 
-        var newTab = tasks.getSelected().tabs.add({
-            url: 'https://minbrowser.github.io/min/tour'
-        })
+        var newTab = tasks.getSelected().tabs.add()
         browserUI.addTab(newTab, {
-         enterEditMode: false
+         enterEditMode: true
         })
         return
       }
@@ -103,44 +101,44 @@ const sessionRestore = {
         return
       }
 
-      // add the saved tasks
-
+      // Merge all saved tasks into a single task (Chrome-style)
+      var allTabs = []
       data.state.tasks.forEach(function (task) {
-        // restore the task item
-        tasks.add(task)
-
-        /*
-        If the task contained only private tabs, none of the tabs will be contained in the session restore data, but tasks must always have at least 1 tab, so create a new empty tab if the task doesn't have any.
-        */
-        if (task.tabs.length === 0) {
-          tasks.get(task.id).tabs.add()
+        if (task.tabs && task.tabs.length > 0) {
+          allTabs = allTabs.concat(task.tabs)
         }
       })
 
-      var mostRecentTasks = tasks.slice().sort((a, b) => {
-        return tasks.getLastActivity(b.id) - tasks.getLastActivity(a.id)
-      })
-      if (mostRecentTasks.length > 0) {
-        tasks.setSelected(mostRecentTasks[0].id)
+      // Create one task with all tabs merged
+      if (allTabs.length > 0) {
+        var mergedTask = Object.assign({}, data.state.tasks[0], { tabs: allTabs })
+        tasks.add(mergedTask)
+      } else {
+        tasks.add()
+        tasks.getSelected().tabs.add()
       }
 
-      // switch to the previously selected tasks
+      // Select the first (and only) task
+      tasks.setSelected(tasks.byIndex(0).id)
 
-      if (tasks.getSelected().tabs.isEmpty() || startupConfigOption === 1) {
-        browserUI.switchToTask(mostRecentTasks[0].id)
+      // Switch to the most recent tab
+      var selectedTab = tasks.getSelected().tabs.getSelected()
+      if (!selectedTab) {
+        var mostRecentTab = tasks.getSelected().tabs.get().sort(function (a, b) {
+          return b.lastActivity - a.lastActivity
+        })[0]
+        if (mostRecentTab) {
+          selectedTab = mostRecentTab.id
+        }
+      }
+
+      if (selectedTab) {
+        browserUI.switchToTask(tasks.getSelected().id)
         if (tasks.getSelected().tabs.isEmpty()) {
           tabEditor.show(tasks.getSelected().tabs.getSelected())
         }
       } else {
-        window.createdNewTaskOnStartup = true
-        // try to reuse a previous empty task
-        var lastTask = tasks.byIndex(tasks.getLength() - 1)
-        if (lastTask && lastTask.tabs.isEmpty() && !lastTask.name) {
-          browserUI.switchToTask(lastTask.id)
-          tabEditor.show(lastTask.tabs.getSelected())
-        } else {
-          browserUI.addTask()
-        }
+        browserUI.addTask()
       }
 
       /* Disabled - show user survey
@@ -224,9 +222,7 @@ const sessionRestore = {
     } else {
       sessionRestore.syncWithWindow()
     }
-    if (settings.get('newWindowOption') === 2 && !Object.hasOwn(window.globalArgs, 'launch-window') && !Object.hasOwn(window.globalArgs, 'initial-task')) {
-      taskOverlay.show()
-    }
+    // Task overlay removed — no longer shown on startup
   },
   initialize: function () {
     setInterval(sessionRestore.save, 30000)

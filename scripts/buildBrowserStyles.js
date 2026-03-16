@@ -15,6 +15,7 @@ const modules = [
   'css/searchbar.css',
   'css/listItem.css',
   'css/bookmarkManager.css',
+  'css/bookmarksBar.css',
   'css/findinpage.css',
   'css/downloadManager.css',
   'css/passwordManager.css',

@@ -109,8 +109,9 @@ const defaultKeybindings = {
       tabEditor.container.querySelector('.bookmarks-button').click()
     })
 
-    keybindings.defineShortcut('showBookmarks', function () {
-      tabEditor.show(tabs.getSelected(), '!bookmarks ')
+    keybindings.defineShortcut('toggleBookmarksBar', function () {
+      var bookmarksBar = require('navbar/bookmarksBar.js')
+      bookmarksBar.toggle()
     })
 
     // cmd+x should switch to tab x. Cmd+9 should switch to the last tab

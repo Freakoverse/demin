@@ -1,51 +1,129 @@
-#tab-editor {
-  padding: 0 0.55em;
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
+/* ========================================================================
+   Address Bar — Always-visible Chrome-style URL bar
+   ======================================================================== */
+
+#address-bar {
   display: flex;
-  height: 100%;
   align-items: center;
-  transform-origin: top left;
-  z-index: 1;
+  height: 48px;
+  padding: 4px 8px;
+  gap: 4px;
+  -webkit-user-select: none;
+  user-select: none;
+  position: relative;
+  z-index: 2;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  -webkit-app-region: drag;
 }
 
-#tab-editor-input {
-  font-size: 1.1em;
-  line-height: 2em;
+/* Interactive elements in address bar must not be draggable */
+#address-bar button,
+#address-bar input,
+#address-bar #tab-editor {
+  -webkit-app-region: no-drag;
+}
+.dark-theme #address-bar {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Navigation buttons in the address bar */
+#address-bar #toolbar-navigation-buttons {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+#address-bar #back-button,
+#address-bar #forward-button {
+  opacity: 1;
+  transition: none;
+  padding: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2em !important;
+}
+#address-bar #back-button:hover,
+#address-bar #forward-button:hover {
+  background-color: rgba(0, 0, 0, 0.06);
+}
+.dark-theme #address-bar #back-button:hover,
+.dark-theme #address-bar #forward-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+#address-bar #back-button:disabled,
+#address-bar #forward-button:disabled {
+  opacity: 0.25;
+}
+#address-bar #forward-button {
+  margin-left: 0;
+}
+
+/* Tab editor (URL input) — always visible in address bar */
+#address-bar #tab-editor {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  height: 30px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 16px;
+  padding: 0 12px;
+  position: relative;
+  transition: 0.2s background-color, 0.2s box-shadow;
+}
+.dark-theme #address-bar #tab-editor {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+#address-bar #tab-editor:focus-within {
+  background: rgba(0, 0, 0, 0.03);
+  box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.5);
+}
+.dark-theme #address-bar #tab-editor:focus-within {
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 0 0 2px rgba(138, 180, 248, 0.4);
+}
+
+#address-bar #tab-editor-input {
+  font-size: 14px;
+  line-height: 30px;
   background: none;
   -webkit-appearance: none;
   border: none;
   color: inherit;
   flex: 1;
-  height: 1.5em;
+  height: 100%;
   outline: none;
   -webkit-user-select: auto;
   -webkit-app-region: no-drag;
+  padding: 0;
 }
-#tab-editor-input::-webkit-input-placeholder {
+#address-bar #tab-editor-input::-webkit-input-placeholder {
   color: inherit;
   opacity: 0.5;
-  line-height: 1.25em;
 }
 
-#tab-editor .tab-editor-button {
-  padding: 0.4em;
-  margin-top: 0.1em;
+#address-bar #tab-editor .tab-editor-button {
+  padding: 4px;
   border-radius: 50%;
+  flex-shrink: 0;
+  font-size: 1em;
 }
-
-#tab-editor .tab-editor-button:hover {
+#address-bar #tab-editor .tab-editor-button:hover {
   background-color: rgba(0, 0, 0, 0.075);
 }
-
-.dark-theme #tab-editor .tab-editor-button:hover {
+.dark-theme #address-bar #tab-editor .tab-editor-button:hover {
   background-color: rgba(255, 255, 255, 0.15);
 }
+#address-bar #tab-editor .tab-editor-button:not([hidden]) + .tab-editor-button:not([hidden]) {
+  margin-left: 2px;
+}
 
-#tab-editor
-  .tab-editor-button:not([hidden])
-  + .tab-editor-button:not([hidden]) {
-  margin-left: 0.25em;
+/* Browser chrome wrapper */
+#browser-chrome {
+  -webkit-user-select: none;
 }

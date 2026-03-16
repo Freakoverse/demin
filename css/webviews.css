@@ -1,6 +1,11 @@
 #webviews {
-  height: calc(100vh - 36px - var(--control-space-top));
+  height: calc(100vh - 38px - 48px - var(--control-space-top));
   position: relative;
+}
+
+/* Reduce height when bookmarks bar is visible to prevent overlap */
+body.bookmarks-bar-visible #webviews {
+  height: calc(100vh - 38px - 48px - 30px - var(--control-space-top));
 }
 
 .arrow-indicator {

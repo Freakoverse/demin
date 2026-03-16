@@ -465,6 +465,18 @@ ipc.on('quit', function () {
   app.quit()
 })
 
+ipc.on('showBookmarkContextMenu', function (e, data) {
+  var menu = Menu.buildFromTemplate([
+    {
+      label: 'Remove from bookmarks',
+      click: function () {
+        e.sender.send('removeBookmark', data.url)
+      }
+    }
+  ])
+  menu.popup()
+})
+
 ipc.on('tab-state-change', function (e, events) {
   const sourceWindowId = windows.windowFromContents(e.sender)?.id
   if (!sourceWindowId) {
@@ -497,6 +509,7 @@ ipc.on('request-tab-state', function (e) {
 const placesPage = 'file://' + __dirname + '/js/places/placesService.html'
 
 let placesWindow = null
+let placesReady = null
 app.once('ready', function () {
   placesWindow = new BrowserWindow({
     width: 300,
@@ -508,11 +521,20 @@ app.once('ready', function () {
     }
   })
 
+  placesReady = new Promise(function (resolve) {
+    placesWindow.webContents.once('did-finish-load', resolve)
+  })
+
   placesWindow.loadURL(placesPage)
 })
 
 ipc.on('places-connect', function (e) {
-  placesWindow.webContents.postMessage('places-connect', null, e.ports)
+  // Wait for the places worker to finish loading before forwarding the port.
+  // Without this, the port can be sent before the worker's event listener is
+  // registered, causing the MessageChannel to silently fail.
+  placesReady.then(function () {
+    placesWindow.webContents.postMessage('places-connect', null, e.ports)
+  })
 })
 
 function getWindowWebContents(win) {

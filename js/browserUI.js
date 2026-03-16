@@ -11,17 +11,9 @@ var tabBar = require('navbar/tabBar.js')
 var tabEditor = require('navbar/tabEditor.js')
 var searchbar = require('searchbar/searchbar.js')
 
-/* creates a new task */
+/* creates a new task — in single-task mode, just adds a new tab */
 
 function addTask () {
-  // insert after current task
-  let index
-  if (tasks.getSelected()) {
-    index = tasks.getIndex(tasks.getSelected().id) + 1
-  }
-  tasks.setSelected(tasks.add({}, index))
-
-  tabBar.updateAll()
   addTab()
 }
 
@@ -156,8 +148,7 @@ function setWindowTitle () {
 
   const title = [
     truncateString(tab.title || '', 100),
-    truncateString(task.name || '', 100),
-    'Min'
+    'Demin'
   ].filter(str => !!str).join(' | ')
 
   if (document.title !== title) {

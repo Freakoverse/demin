@@ -55,7 +55,8 @@ module.exports = {
     })
 
     ipc.on('showBookmarks', function () {
-      tabEditor.show(tabs.getSelected(), '!bookmarks ')
+      var bookmarksBar = require('navbar/bookmarksBar.js')
+      bookmarksBar.toggle()
     })
 
     ipc.on('showHistory', function () {

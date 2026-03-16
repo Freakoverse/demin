@@ -1,16 +1,22 @@
 #searchbar {
-  z-index: 3;
+  z-index: 100;
   position: fixed;
-  top: calc(var(--control-space-top) + 36px);
+  top: calc(var(--control-space-top) + 38px + 48px);
   left: 0;
   width: 100%;
-  background: #fff;
-  color: #000;
+  background: inherit;
+  color: inherit;
   padding-left: var(--control-space-left);
   padding-right: calc(82px + var(--control-space-right));
   -webkit-user-select: none;
-  max-height: calc(100% - 125px);
+  user-select: none;
+  max-height: 400px;
   overflow-y: auto;
+}
+
+/* When bookmarks bar is visible, push searchbar down */
+body.bookmarks-bar-visible #searchbar {
+  top: calc(var(--control-space-top) + 38px + 48px + 30px);
 }
 
 body:not(.is-ntp) #searchbar,

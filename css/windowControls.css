@@ -10,19 +10,7 @@ body {
   display: none;
 }
 
-body.windows:not(.maximized):not(.fullscreen):not(.separate-titlebar),
-body.linux:not(.maximized):not(.fullscreen):not(.separate-titlebar) {
-  --control-space-top: 12px;
-}
-
-/* On Windows, draggable regions aren't clickable, so the drag region is a separate area above the tabstrip */
-/* Show drag area for both windowed and maximized modes (but not fullscreen) */
-body.windows:not(.fullscreen):not(.separate-titlebar) .window-drag-area,
-body.linux:not(.fullscreen):not(.separate-titlebar) .window-drag-area {
-  display: block;
-  position: fixed;
-  -webkit-app-region: drag;
-}
+/* Drag area disabled — navbar tabs area is now draggable directly */
 
 /* Windowed mode: leave space around edges for resize handles */
 body.windows:not(.maximized):not(.fullscreen):not(.separate-titlebar) .window-drag-area,
@@ -86,6 +74,7 @@ body.windows:not(.separate-titlebar) .windows-caption-buttons {
   top: var(--control-space-top);
   right: 0;
   z-index: 10;
+  -webkit-app-region: no-drag;
 }
 
 .windows-caption-buttons .element {
@@ -151,6 +140,7 @@ body.linux:not(.separate-titlebar) #linux-control-buttons {
   right: 9px;
   z-index: 9;
   width: 76px;
+  -webkit-app-region: no-drag;
 }
 
 body.task-overlay-is-shown #linux-control-buttons {

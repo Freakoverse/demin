@@ -1,4 +1,10 @@
-# Min
+# Demin
+
+> **Demin** is a fork of the [Min browser](https://github.com/minbrowser/min) with a modified UX and added [DNN](https://github.com/nickkipshidze/dnn) (Decentralized Name Network) support.
+
+---
+
+## Min (Original Project)
 
 Min is a fast, minimal browser that protects your privacy. It includes an interface designed to minimize distractions, and features such as:
 

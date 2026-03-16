@@ -17,15 +17,10 @@ const tabEditor = {
       return
     }
 
-    tabEditor.container.hidden = false
     tabEditor.isShown = true
 
     bookmarkStar.update(tabId, tabEditor.star)
     contentBlockingToggle.update(tabId, tabEditor.contentBlockingToggle)
-
-    webviews.requestPlaceholder('editMode')
-
-    document.body.classList.add('is-edit-mode')
 
     var currentURL = urlParser.getSourceURL(tabs.get(tabId).url)
     if (currentURL === 'min://newtab') {
@@ -37,8 +32,11 @@ const tabEditor = {
     if (!editingValue) {
       tabEditor.input.select()
     }
-    // https://github.com/minbrowser/min/discussions/1506
     tabEditor.input.scrollLeft = 0
+
+    // Hide the BrowserView so the searchbar dropdown is visible
+    // (BrowserView is a native window that covers all HTML content)
+    webviews.requestPlaceholder('editMode')
 
     searchbar.show(tabEditor.input)
 
@@ -49,38 +47,45 @@ const tabEditor = {
         searchbar.showResults('', null)
       }
     }
-
-    /* animation */
-    if (tabs.count() > 1) {
-      requestAnimationFrame(function () {
-        var item = document.querySelector(`.tab-item[data-tab="${tabId}"]`)
-        var originCoordinates = item.getBoundingClientRect()
-
-        var finalCoordinates = document.querySelector('#tabs').getBoundingClientRect()
-
-        var translateX = Math.min(Math.round(originCoordinates.x - finalCoordinates.x) * 0.45, window.innerWidth)
-
-        tabEditor.container.style.opacity = 0
-        tabEditor.container.style.transform = `translateX(${translateX}px)`
-        requestAnimationFrame(function () {
-          tabEditor.container.style.transition = '0.135s all'
-          tabEditor.container.style.opacity = 1
-          tabEditor.container.style.transform = ''
-        })
-      })
-    }
   },
   hide: function () {
-    tabEditor.container.hidden = true
-    tabEditor.container.removeAttribute('style')
+    if (!tabEditor.isShown) {
+      // Update the URL display even if not in edit mode
+      tabEditor.updateURLDisplay()
+      return
+    }
     tabEditor.isShown = false
 
     tabEditor.input.blur()
     searchbar.hide()
 
-    document.body.classList.remove('is-edit-mode')
-
+    // Restore the BrowserView
     webviews.hidePlaceholder('editMode')
+
+    // Update the address bar to show the current URL
+    tabEditor.updateURLDisplay()
+  },
+  // Show the current tab's URL in the address bar (non-edit mode)
+  updateURLDisplay: function () {
+    var selectedTab = tabs.getSelected && tabs.getSelected()
+    if (selectedTab) {
+      var tabData = tabs.get(selectedTab)
+      if (tabData) {
+        var url = urlParser.getSourceURL(tabData.url)
+        if (url === 'min://newtab' || !url) {
+          tabEditor.input.value = ''
+        } else {
+          tabEditor.input.value = url
+        }
+        // Always update bookmark star and content blocking toggle
+        if (tabEditor.star) {
+          bookmarkStar.update(selectedTab, tabEditor.star)
+        }
+        if (tabEditor.contentBlockingToggle) {
+          contentBlockingToggle.update(selectedTab, tabEditor.contentBlockingToggle)
+        }
+      }
+    }
   },
   initialize: function () {
     tabEditor.input.setAttribute('placeholder', l('searchbarPlaceholder'))
@@ -94,25 +99,27 @@ const tabEditor = {
     keyboardNavigationHelper.addToGroup('searchbar', tabEditor.container)
 
     tabEditor.input.addEventListener('input', function (e) {
-      // handles all inputs except for the case where the selection is moved (since we call preventDefault() there)
       searchbar.showResults(this.value, {
         isDeletion: e.inputType.includes('delete')
       })
     })
 
+    // Focus the input when clicked (enter edit mode)
+    tabEditor.input.addEventListener('focus', function (e) {
+      if (!tabEditor.isShown) {
+        tabEditor.show(tabs.getSelected())
+      }
+    })
+
     tabEditor.input.addEventListener('keypress', function (e) {
-      if (e.keyCode === 13) { // return key pressed; update the url
+      if (e.keyCode === 13) {
         if (this.getAttribute('data-autocomplete') && this.getAttribute('data-autocomplete').toLowerCase() === this.value.toLowerCase()) {
-          // special case: if the typed input is capitalized differently from the actual URL that was autocompleted (but is otherwise the same), then we want to open the actual URL instead of what was typed.
-          // see https://github.com/minbrowser/min/issues/314#issuecomment-276678613
           searchbar.openURL(this.getAttribute('data-autocomplete'), e)
         } else {
           searchbar.openURL(this.value, e)
         }
         e.preventDefault()
       }
-
-      // on keydown, if the autocomplete result doesn't change, we move the selection instead of regenerating it to avoid race conditions with typing. Adapted from https://github.com/patrickburke/jquery.inlineComplete
 
       if (e.key && this.selectionEnd === this.value.length && this.value[this.selectionStart] === e.key) {
         this.selectionStart += 1
@@ -121,8 +128,23 @@ const tabEditor = {
       }
     })
 
+    // Click on webview dismisses search, but address bar stays
     document.getElementById('webviews').addEventListener('click', function () {
       tabEditor.hide()
+    })
+
+    // Update URL display when tab changes
+    tasks.on('tab-selected', function () {
+      setTimeout(function () {
+        tabEditor.updateURLDisplay()
+      }, 50)
+    })
+    tasks.on('tab-updated', function (id, key) {
+      if ((key === 'url' || key === 'title') && id === tabs.getSelected()) {
+        if (!tabEditor.isShown) {
+          tabEditor.updateURLDisplay()
+        }
+      }
     })
   }
 }

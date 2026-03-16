@@ -1,0 +1,82 @@
+/* ========================================================================
+   Bookmarks Bar — Chrome-style horizontal bookmarks strip
+   ======================================================================== */
+
+#bookmarks-bar {
+  display: flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 8px;
+  gap: 2px;
+  overflow: hidden;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  -webkit-user-select: none;
+  user-select: none;
+  font-size: 12px;
+}
+.dark-theme #bookmarks-bar {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+#bookmarks-bar[hidden] {
+  display: none;
+}
+
+#bookmarks-bar-items {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  height: 100%;
+  scrollbar-width: none;
+}
+
+#bookmarks-bar-items::-webkit-scrollbar {
+  display: none;
+}
+
+/* Individual bookmark button */
+.bookmark-bar-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  cursor: default;
+  height: 24px;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+  transition: background-color 0.1s;
+}
+
+.bookmark-bar-item:hover {
+  background-color: rgba(0, 0, 0, 0.06);
+}
+.dark-theme .bookmark-bar-item:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.bookmark-bar-item .bookmark-favicon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  border-radius: 2px;
+}
+
+.bookmark-bar-item .bookmark-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 24px;
+}
+
+/* Empty state */
+#bookmarks-bar .bookmarks-bar-empty {
+  opacity: 0.5;
+  font-style: italic;
+  padding: 0 8px;
+}

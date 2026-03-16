@@ -1,9 +1,8 @@
 const places = require('places/places.js')
-const bookmarkEditor = require('searchbar/bookmarkEditor.js')
-const searchbar = require('searchbar/searchbar.js')
 const searchbarPlugins = require('searchbar/searchbarPlugins.js')
 
 const bookmarkStar = {
+  _justToggled: false,
   create: function () {
     const star = document.createElement('button')
     star.className = 'tab-editor-button bookmarks-button i carbon:star'
@@ -12,6 +11,8 @@ const bookmarkStar = {
     star.setAttribute('aria-label', l('addBookmark'))
 
     star.addEventListener('click', function (e) {
+      e.stopPropagation()
+      e.preventDefault()
       bookmarkStar.onClick(star)
     })
 
@@ -19,45 +20,76 @@ const bookmarkStar = {
   },
   onClick: function (star) {
     var tabId = star.getAttribute('data-tab')
+    if (!tabId) {
+      tabId = tabs.getSelected()
+    }
+    if (!tabId) return
 
-    searchbarPlugins.clearAll()
+    var tabData = tabs.get(tabId)
+    if (!tabData || !tabData.url) return
 
-    places.updateItem(tabs.get(tabId).url, {
-      isBookmarked: true,
-      title: tabs.get(tabId).title // if this page is open in a private tab, the title may not be saved already, so it needs to be included here
-    })
-    .then(function () {
+    var isCurrentlyBookmarked = star.getAttribute('aria-pressed') === 'true'
+
+    // Prevent update() from overriding visual state during async operation
+    bookmarkStar._justToggled = true
+    setTimeout(function () { bookmarkStar._justToggled = false }, 2000)
+
+    if (isCurrentlyBookmarked) {
+      // Remove bookmark — update visuals immediately
+      star.classList.add('carbon:star')
+      star.classList.remove('carbon:star-filled')
+      star.setAttribute('aria-pressed', false)
+
+      places.updateItem(tabData.url, {
+        isBookmarked: false
+      }).then(function () {
+        var bookmarksBar = require('navbar/bookmarksBar.js')
+        if (bookmarksBar.isVisible) {
+          bookmarksBar.render()
+        }
+      }).catch(function (err) {
+        console.error('[BookmarkStar] Error removing bookmark:', err)
+      })
+    } else {
+      // Add bookmark — update visuals immediately
       star.classList.remove('carbon:star')
       star.classList.add('carbon:star-filled')
       star.setAttribute('aria-pressed', true)
 
-      var editorInsertionPoint = document.createElement('div')
-      searchbarPlugins.getContainer('simpleBookmarkTagInput').appendChild(editorInsertionPoint)
-      bookmarkEditor.show(tabs.get(tabs.getSelected()).url, editorInsertionPoint, function (newBookmark) {
-        if (!newBookmark) {
-          // bookmark was deleted
-          star.classList.add('carbon:star')
-          star.classList.remove('carbon:star-filled')
-          star.setAttribute('aria-pressed', false)
-          searchbar.showResults('')
-          searchbar.associatedInput.focus()
+      places.updateItem(tabData.url, {
+        isBookmarked: true,
+        bookmarkedAt: Date.now(),
+        title: tabData.title
+      }).then(function () {
+        var bookmarksBar = require('navbar/bookmarksBar.js')
+        if (bookmarksBar.isVisible) {
+          bookmarksBar.render()
         }
-      }, { simplified: true, autoFocus: true })
-    })
+      }).catch(function (err) {
+        console.error('[BookmarkStar] Error adding bookmark:', err)
+      })
+    }
   },
   update: function (tabId, star) {
+    // Always update the data-tab attribute so clicks target the correct tab
     star.setAttribute('data-tab', tabId)
-    const currentURL = tabs.get(tabId).url
 
-    if (!currentURL) { // no url, can't be bookmarked
+    var tabUrl = tabs.get(tabId).url
+
+    if (!tabUrl) {
       star.hidden = true
+      return
     } else {
       star.hidden = false
     }
 
-    // check if the page is bookmarked or not, and update the star to match
+    // Skip visual state update if user just clicked the star (prevents race condition)
+    if (bookmarkStar._justToggled) return
 
-    places.getItem(currentURL).then(function (item) {
+    places.getItem(tabUrl).then(function (item) {
+      // Re-check: user might have clicked star while we were waiting
+      if (bookmarkStar._justToggled) return
+
       if (item && item.isBookmarked) {
         star.classList.remove('carbon:star')
         star.classList.add('carbon:star-filled')

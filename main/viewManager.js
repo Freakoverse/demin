@@ -234,7 +234,8 @@ function createView(existingViewId, id, webPreferences, boundsString, events) {
     }
   })
 
-  view.setBounds(JSON.parse(boundsString))
+  var parsedBounds = JSON.parse(boundsString)
+  view.setBounds(parsedBounds)
 
   viewMap[id] = view
 
@@ -269,7 +270,8 @@ function setView(id, senderContents) {
 
   // changing views can cause flickering, so we only want to call it if the view is actually changing
   // see https://github.com/minbrowser/min/issues/1966
-  if (windows.getState(win).selectedView !== viewMap[id]) {
+  // Compare using ID (selectedView stores the ID, not the view object)
+  if (windows.getState(win).selectedView !== id) {
     //remove all prior views
     win.getContentView().children.slice(1).forEach(child => win.getContentView().removeChildView(child))
     if (viewStateMap[id].loadedInitialURL) {

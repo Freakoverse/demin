@@ -3,6 +3,9 @@
  * Mirrors the daemon's peerdiscovery package functionality
  */
 
+const ndFs = require('fs')
+const ndPath = require('path')
+
 // Seed nodes - hardcoded initial nodes
 const SEED_NODES = [
     'https://node.icannot.xyz',
@@ -14,11 +17,72 @@ const MAX_POOL_SIZE = 21
 const REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000 // 24 hours
 const HEALTH_CHECK_TIMEOUT_MS = 10000
 const CRAWL_TIMEOUT_MS = 15000
+const POOL_MAX_AGE_MS = 48 * 60 * 60 * 1000 // 48 hours - discard saved pool if older
 
 // State
 let nodePool = []
 let refreshTimer = null
 let isRefreshing = false
+
+/**
+ * Get the file path for persisting the node pool
+ */
+function getPoolFilePath() {
+    try {
+        const userDataPath = app.getPath('userData')
+        return ndPath.join(userDataPath, 'dnn-nodes.json')
+    } catch (e) {
+        return null
+    }
+}
+
+/**
+ * Save the node pool to disk
+ */
+function savePool() {
+    const filePath = getPoolFilePath()
+    if (!filePath) return
+
+    try {
+        const data = {
+            savedAt: Date.now(),
+            nodes: nodePool
+        }
+        ndFs.writeFileSync(filePath, JSON.stringify(data, null, 2))
+    } catch (e) {
+        console.log(`[NodeDiscovery] Failed to save pool: ${e.message}`)
+    }
+}
+
+/**
+ * Load the node pool from disk
+ * @returns {string[]} - Saved nodes or empty array
+ */
+function loadPool() {
+    const filePath = getPoolFilePath()
+    if (!filePath) return []
+
+    try {
+        if (!ndFs.existsSync(filePath)) return []
+
+        const raw = ndFs.readFileSync(filePath, 'utf-8')
+        const data = JSON.parse(raw)
+
+        // Discard if too old
+        if (data.savedAt && (Date.now() - data.savedAt) > POOL_MAX_AGE_MS) {
+            console.log('[NodeDiscovery] Saved pool too old, discarding')
+            return []
+        }
+
+        if (Array.isArray(data.nodes) && data.nodes.length > 0) {
+            console.log(`[NodeDiscovery] Loaded ${data.nodes.length} saved nodes from disk`)
+            return data.nodes
+        }
+    } catch (e) {
+        console.log(`[NodeDiscovery] Failed to load pool: ${e.message}`)
+    }
+    return []
+}
 
 /**
  * Normalize URL for comparison
@@ -45,9 +109,9 @@ async function healthCheck(nodeURL) {
     const timeout = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT_MS)
 
     try {
-        // Try /dnn/health first
-        const healthURL = normalizeURL(nodeURL) + '/dnn/health'
-        let resp = await fetch(healthURL, { signal: controller.signal })
+        // Try /dnn/status first (returns JSON with node info)
+        const statusURL = normalizeURL(nodeURL) + '/dnn/status'
+        let resp = await fetch(statusURL, { signal: controller.signal })
         if (resp.ok) {
             clearTimeout(timeout)
             return true
@@ -57,13 +121,15 @@ async function healthCheck(nodeURL) {
     }
 
     try {
-        // Fallback: try /dnn/resolve with test query
-        const resolveURL = normalizeURL(nodeURL) + '/dnn/resolve/nabtaabove'
-        const resp = await fetch(resolveURL, { signal: controller.signal })
+        // Fallback: try /dnn/peers - any HTTP response (even 4xx) means node is alive
+        const peersURL = normalizeURL(nodeURL) + '/dnn/peers'
+        const resp = await fetch(peersURL, { signal: controller.signal })
         clearTimeout(timeout)
-        return resp.ok
+        // Any HTTP response means the node is reachable and running
+        return resp.status > 0
     } catch (e) {
         clearTimeout(timeout)
+        console.log(`[NodeDiscovery] Health check failed for ${nodeURL}: ${e.message}`)
         return false
     }
 }
@@ -87,15 +153,47 @@ async function fetchPeers(nodeURL, endpoint) {
 
         const data = await resp.json()
 
-        // Handle array or object with peers field
+        // Extract peer URLs from various response formats
+        let items = []
+
         if (Array.isArray(data)) {
-            return data
+            items = data
+        } else if (data && Array.isArray(data.results)) {
+            items = data.results
+        } else if (data && Array.isArray(data.items)) {
+            items = data.items
         } else if (data && Array.isArray(data.peers)) {
-            return data.peers
+            items = data.peers
         }
-        return []
+
+
+
+        // Extract URLs from items - handle both string URLs and peer objects
+        const urls = []
+        for (const item of items) {
+            if (typeof item === 'string') {
+                urls.push(item)
+            } else if (item && typeof item === 'object') {
+                const httpURL = item.address || item.url || item.api_url || item.http_url
+                if (httpURL) {
+                    urls.push(httpURL)
+                    continue
+                }
+                const relayURL = item.relay_url || item.relayUrl
+                if (relayURL) {
+                    const httpEquiv = relayURL
+                        .replace('wss://', 'https://')
+                        .replace('ws://', 'http://')
+                    urls.push(httpEquiv)
+                }
+            }
+        }
+
+
+        return urls
     } catch (e) {
         clearTimeout(timeout)
+
         return []
     }
 }
@@ -140,6 +238,7 @@ async function refreshPool() {
 
         // Health check
         const healthy = await healthCheck(node)
+
         if (!healthy) continue
 
         // Add to pool if healthy and not a seed
@@ -165,6 +264,9 @@ async function refreshPool() {
     nodePool = newPool
     isRefreshing = false
 
+    // Persist to disk
+    savePool()
+
     console.log(`[NodeDiscovery] Pool refreshed: ${newPool.length} discovered nodes (+ ${SEED_NODES.length} seed nodes)`)
 }
 
@@ -174,7 +276,14 @@ async function refreshPool() {
 function start() {
     console.log(`[NodeDiscovery] Starting with ${SEED_NODES.length} seed nodes`)
 
-    // Initial refresh
+    // Load saved pool from previous session
+    const savedNodes = loadPool()
+    if (savedNodes.length > 0) {
+        nodePool = savedNodes
+        console.log(`[NodeDiscovery] Using ${savedNodes.length} nodes from previous session`)
+    }
+
+    // Refresh in the background (re-validates saved nodes + discovers new ones)
     refreshPool()
 
     // Schedule periodic refresh

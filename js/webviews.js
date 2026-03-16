@@ -320,10 +320,17 @@ const webviews = {
         height: window.innerHeight
       }
     } else {
-      if (!hasSeparateTitlebar && (window.platformType === 'linux' || window.platformType === 'windows') && !windowIsMaximized && !windowIsFullscreen) {
-        var navbarHeight = 48
-      } else {
-        var navbarHeight = 36
+      // Dynamically measure the actual rendered bottom of the browser chrome container.
+      // The bookmarks bar renders at 24px (not CSS 30px) when items are loaded,
+      // so hardcoded values (116) create a gap. getBoundingClientRect gives actual position.
+      var navbarHeight = 86 // fallback: 38 (navbar) + 48 (address bar)
+
+      var chromeEl = document.getElementById('browser-chrome')
+      if (chromeEl) {
+        var rect = chromeEl.getBoundingClientRect()
+        if (rect.bottom > 0) {
+          navbarHeight = Math.round(rect.bottom)
+        }
       }
 
       const viewMargins = webviews.viewMargins
@@ -334,6 +341,10 @@ const webviews = {
         width: window.innerWidth - Math.round(viewMargins[1] + viewMargins[3]),
         height: window.innerHeight - Math.round(viewMargins[0] + viewMargins[2]) - navbarHeight
       }
+
+      // Guard against invalid bounds (e.g., at startup when innerHeight=0)
+      if (position.width <= 0) position.width = 1
+      if (position.height <= 0) position.height = 1
 
       return position
     }
@@ -401,6 +412,8 @@ const webviews = {
       focus: !options || options.focus !== false
     })
     webviews.emitEvent('view-shown', id)
+
+
   },
   update: function (id, url) {
     ipc.send('loadURLInView', { id: id, url: urlParser.parse(url) })
@@ -738,6 +751,33 @@ ipcRenderer.on('dnn-cert-status', function (e, data) {
     ipcRenderer.send('dnn-ipc-received', { error: err.message, stack: err.stack })
   }
 })
+
+ipc.on('maximize', function () {
+  windowIsMaximized = true
+  webviews.resize()
+})
+
+ipc.on('unmaximize', function () {
+  windowIsMaximized = false
+  webviews.resize()
+})
+
+ipc.on('enter-full-screen', function () {
+  windowIsFullscreen = true
+  webviews.resize()
+})
+
+ipc.on('leave-full-screen', function () {
+  windowIsFullscreen = false
+  webviews.resize()
+})
+
+// Ensure correct bounds after DOM is fully rendered on startup
+setTimeout(function () {
+  if (webviews.selectedId) {
+    webviews.resize()
+  }
+}, 1000)
 
 module.exports = webviews
 
