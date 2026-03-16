@@ -262,12 +262,9 @@ var urlParser = {
       return `https://${url}`
     }
 
-    // if the url doesn't have any protocol and it's a valid domain
+    // if the url doesn't have any protocol and it's a valid domain, default to HTTPS
     if (urlParser.isURLMissingProtocol(url) && urlParser.validateDomain(urlParser.getDomain(url))) {
-      if (urlParser.isHTTPSUpgreadable(url)) { // check if it is HTTPS-able
-        return 'https://' + url
-      }
-      return 'http://' + url
+      return 'https://' + url
     }
 
     // else, do a search
